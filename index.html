@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#ffd166">
+<title>Buchstaben-Quiz</title>
+<style>
+  :root{
+    --bg1:#fff4d6; --bg2:#ffe0ec;
+    --ink:#2b2d42; --muted:#6c6f85;
+    --a:#ff6b6b; --b:#4d96ff;
+    --ok:#06d6a0; --sun:#ffd166; --card:#ffffff;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;min-height:100%}
+  body{
+    font-family:ui-rounded,"SF Pro Rounded","Nunito","Comic Sans MS",system-ui,sans-serif;
+    color:var(--ink);
+    background:linear-gradient(160deg,var(--bg1),var(--bg2));
+    min-height:100vh; user-select:none; -webkit-user-select:none;
+  }
+  button{font:inherit;color:inherit;border:none;cursor:pointer}
+  .wrap{max-width:820px;margin:0 auto;padding:16px 16px 40px}
+  h1{font-size:clamp(26px,5vw,40px);text-align:center;margin:8px 0 4px}
+  .sub{text-align:center;color:var(--muted);margin:0 0 18px;font-size:18px}
+  .hidden{display:none!important}
+
+  /* Themen */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}
+  .cat{
+    background:var(--card);border-radius:24px;padding:18px 10px;
+    box-shadow:0 6px 0 rgba(0,0,0,.08);display:flex;flex-direction:column;
+    align-items:center;gap:6px;transition:transform .1s;
+  }
+  .cat:active{transform:scale(.95)}
+  .cat .e{font-size:54px;line-height:1}
+  .cat .n{font-size:19px;font-weight:700}
+  .cat.random{background:var(--sun)}
+
+  /* Quiz */
+  .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:10px}
+  .pill{
+    background:var(--card);border-radius:999px;padding:12px 18px;font-size:18px;font-weight:700;
+    box-shadow:0 4px 0 rgba(0,0,0,.08)
+  }
+  .pill:active{transform:translateY(2px)}
+  .question{
+    width:100%;background:var(--card);border-radius:28px;padding:20px 18px;
+    box-shadow:0 8px 0 rgba(0,0,0,.08);display:flex;align-items:center;gap:16px;text-align:left
+  }
+  .question:active{transform:scale(.98)}
+  .question .e{font-size:70px;line-height:1}
+  .question .t{flex:1}
+  .question .q1{font-size:16px;color:var(--muted);font-weight:700}
+  .question .q2{font-size:clamp(26px,5.5vw,38px);font-weight:800;line-height:1.1}
+  .question .q3{font-size:20px;margin-top:4px}
+  .spk{font-size:34px;flex-shrink:0;animation:none}
+  .speaking .spk{animation:pulse .6s infinite alternate}
+  @keyframes pulse{from{transform:scale(1)}to{transform:scale(1.2)}}
+
+  .letters{display:flex;justify-content:center;align-items:center;gap:18px;margin:26px 0 10px}
+  .tile{
+    width:clamp(110px,28vw,170px);aspect-ratio:1;border-radius:32px;color:#fff;
+    font-size:clamp(70px,18vw,110px);font-weight:900;display:flex;align-items:center;justify-content:center;
+    box-shadow:0 10px 0 rgba(0,0,0,.15);transition:transform .15s;text-shadow:0 3px 0 rgba(0,0,0,.15)
+  }
+  .tile:active{transform:scale(.93)}
+  .tile.a{background:var(--a)} .tile.b{background:var(--b)}
+  .tile.pop{animation:pop .35s}
+  @keyframes pop{0%{transform:scale(.4) rotate(-15deg)}70%{transform:scale(1.1)}100%{transform:scale(1)}}
+  .or{font-size:22px;font-weight:800;color:var(--muted)}
+
+  .actions{display:flex;justify-content:center;gap:16px;margin:22px 0 10px;flex-wrap:wrap}
+  .big{
+    border-radius:26px;padding:16px 26px;font-size:22px;font-weight:800;
+    box-shadow:0 7px 0 rgba(0,0,0,.15);display:flex;align-items:center;gap:10px
+  }
+  .big:active{transform:translateY(4px);box-shadow:0 3px 0 rgba(0,0,0,.15)}
+  .next{background:var(--sun)}
+  .next .arrow{font-size:34px;line-height:1}
+  .sol{background:var(--ok);color:#fff}
+
+  .solution{background:var(--card);border-radius:28px;padding:16px;margin-top:14px;box-shadow:0 8px 0 rgba(0,0,0,.08)}
+  .group{margin-bottom:10px}
+  .group:last-child{margin-bottom:0}
+  .ghead{font-size:20px;font-weight:800;margin:4px 6px 8px;display:flex;align-items:center;gap:8px}
+  .badge{width:36px;height:36px;border-radius:12px;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-weight:900}
+  .word{
+    width:100%;display:flex;align-items:center;gap:14px;padding:12px 14px;margin-bottom:8px;
+    border-radius:20px;background:#f6f7fb;text-align:left
+  }
+  .word:active{transform:scale(.98)}
+  .word .we{font-size:40px;width:52px;text-align:center;line-height:1}
+  .word .wl{
+    width:52px;height:52px;border-radius:16px;color:#fff;font-weight:900;font-size:28px;
+    display:flex;align-items:center;justify-content:center
+  }
+  .word .wt{flex:1;font-size:clamp(24px,5vw,32px);font-weight:700}
+  .word .wt b{font-weight:900}
+  .word .ws{font-size:30px}
+  .word.speaking{background:#e7fff7}
+  .word.speaking .ws{animation:pulse .6s infinite alternate}
+  .hint{text-align:center;color:var(--muted);font-size:15px;margin-top:22px}
+  .voicewarn{background:#fff;border-radius:16px;padding:10px 14px;margin:10px 0;font-size:15px;color:#b23a48}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- Themen-Auswahl -->
+  <section id="home">
+    <h1>🔤 Buchstaben-Quiz</h1>
+    <p class="sub">Tippe auf ein Thema!</p>
+    <div id="voiceWarn" class="voicewarn hidden">Hinweis: Auf diesem Gerät wurde keine deutsche Stimme gefunden. Vorlesen klappt evtl. nur auf Englisch.</div>
+    <div class="grid" id="grid"></div>
+  </section>
+
+  <!-- Quiz -->
+  <section id="quiz" class="hidden">
+    <div class="top">
+      <button class="pill" id="backBtn">⬅️ Themen</button>
+      <button class="pill" id="otherBtn">🎲 Anderes Thema</button>
+    </div>
+
+    <button class="question" id="questionBtn" aria-label="Frage vorlesen">
+      <div class="e" id="qEmoji"></div>
+      <div class="t">
+        <div class="q1">Nenne mir …</div>
+        <div class="q2" id="qName"></div>
+        <div class="q3">mit <b id="qL1" style="color:var(--a)"></b> oder <b id="qL2" style="color:var(--b)"></b></div>
+      </div>
+      <div class="spk">🔊</div>
+    </button>
+
+    <div class="letters">
+      <button class="tile a" id="tileA"></button>
+      <span class="or">oder</span>
+      <button class="tile b" id="tileB"></button>
+    </div>
+
+    <div class="actions">
+      <button class="big next" id="nextBtn"><span class="arrow">➡️</span> Neue Buchstaben</button>
+      <button class="big sol" id="solBtn">💡 Lösung</button>
+    </div>
+
+    <div class="solution hidden" id="solution"></div>
+
+    <p class="hint">Tippe auf die Frage, die Buchstaben oder die Wörter – dann wird vorgelesen.</p>
+  </section>
+
+</div>
+
+<script>
+/* ---------- Daten ---------- */
+const RAW = [
+  {name:"Tiere", emoji:"🐾", words:"Affe|🐒;Ameise|🐜;Adler|🦅;Bär|🐻;Biene|🐝;Biber|🦫;Delfin|🐬;Dachs|🦡;Dinosaurier|🦕;Elefant|🐘;Ente|🦆;Esel|🫏;Eule|🦉;Eichhörnchen|🐿️;Fisch|🐟;Frosch|🐸;Fuchs|🦊;Flamingo|🦩;Giraffe|🦒;Gans|🪿;Gorilla|🦍;Hund|🐶;Hase|🐰;Hai|🦈;Huhn|🐔;Igel|🦔;Jaguar|🐆;Katze|🐱;Kuh|🐄;Krokodil|🐊;Kamel|🐫;Känguru|🦘;Löwe|🦁;Lama|🦙;Leopard|🐆;Maus|🐭;Marienkäfer|🐞;Nashorn|🦏;Nilpferd|🦛;Otter|🦦;Oktopus|🐙;Pferd|🐴;Pinguin|🐧;Papagei|🦜;Panda|🐼;Qualle|🪼;Raupe|🐛;Rabe|🐦‍⬛;Robbe|🦭;Schwein|🐷;Schaf|🐑;Schlange|🐍;Schmetterling|🦋;Schnecke|🐌;Tiger|🐯;Truthahn|🦃;Taube|🕊️;Uhu|🦉;Vogel|🐦;Wal|🐋;Wolf|🐺;Waschbär|🦝;Yak|🐂;Zebra|🦓;Ziege|🐐"},
+  {name:"Musikinstrumente", emoji:"🎵", words:"Akkordeon|🪗;Blockflöte|🪈;Banjo|🪕;Bass|🎸;Cello|🎻;Dudelsack|🎶;Flöte|🪈;Geige|🎻;Gitarre|🎸;Glockenspiel|🔔;Harfe|🎶;Horn|📯;Keyboard|🎹;Klavier|🎹;Klarinette|🎶;Kontrabass|🎻;Mundharmonika|🎶;Maracas|🪇;Orgel|🎹;Posaune|🎺;Panflöte|🪈;Rassel|🪇;Saxophon|🎷;Schlagzeug|🥁;Tamburin|🪘;Trommel|🥁;Trompete|🎺;Triangel|🔺;Tuba|🎺;Ukulele|🪕;Xylophon|🎶;Zither|🎶"},
+  {name:"Sportarten", emoji:"⚽", words:"Angeln|🎣;Badminton|🏸;Basketball|🏀;Baseball|⚾;Boxen|🥊;Bowling|🎳;Bogenschießen|🏹;Darts|🎯;Eishockey|🏒;Eiskunstlauf|⛸️;Fußball|⚽;Fechten|🤺;Golf|⛳;Handball|🤾;Hockey|🏑;Inlineskaten|🛼;Judo|🥋;Joggen|🏃;Karate|🥋;Klettern|🧗;Kanu|🛶;Laufen|🏃;Mountainbike|🚵;Reiten|🏇;Radfahren|🚴;Rudern|🚣;Ringen|🤼;Schwimmen|🏊;Skifahren|⛷️;Snowboard|🏂;Surfen|🏄;Segeln|⛵;Tennis|🎾;Tischtennis|🏓;Turnen|🤸;Tauchen|🤿;Volleyball|🏐;Wasserball|🤽;Yoga|🧘"},
+  {name:"Obst", emoji:"🍎", words:"Ananas|🍍;Apfel|🍎;Aprikose|🍑;Banane|🍌;Birne|🍐;Brombeere|🫐;Dattel|🌴;Erdbeere|🍓;Feige|🟣;Granatapfel|🔴;Heidelbeere|🫐;Himbeere|🍓;Johannisbeere|🔴;Kirsche|🍒;Kiwi|🥝;Kokosnuss|🥥;Limette|🍋‍🟩;Mango|🥭;Melone|🍈;Mandarine|🍊;Nektarine|🍑;Orange|🍊;Pfirsich|🍑;Pflaume|🟣;Quitte|🍐;Rosine|🍇;Stachelbeere|🟢;Traube|🍇;Wassermelone|🍉;Zitrone|🍋"},
+  {name:"Gemüse", emoji:"🥕", words:"Aubergine|🍆;Avocado|🥑;Blumenkohl|🥦;Brokkoli|🥦;Bohne|🫘;Champignon|🍄;Erbse|🫛;Gurke|🥒;Kartoffel|🥔;Karotte|🥕;Kürbis|🎃;Knoblauch|🧄;Lauch|🥬;Mais|🌽;Möhre|🥕;Paprika|🫑;Pilz|🍄;Radieschen|🔴;Rotkohl|🥬;Rosenkohl|🥬;Salat|🥬;Spinat|🥬;Sellerie|🥬;Tomate|🍅;Zucchini|🥒;Zwiebel|🧅"},
+  {name:"Fahrzeuge", emoji:"🚗", words:"Auto|🚗;Bagger|🚜;Bus|🚌;Boot|⛵;Dreirad|🚲;Eisenbahn|🚂;Fahrrad|🚲;Flugzeug|✈️;Feuerwehrauto|🚒;Hubschrauber|🚁;Heißluftballon|🎈;Kran|🏗️;Kutsche|🐴;Krankenwagen|🚑;Lastwagen|🚚;Motorrad|🏍️;Polizeiauto|🚓;Rakete|🚀;Roller|🛴;Schiff|🚢;Straßenbahn|🚋;Segelboot|⛵;Taxi|🚕;Traktor|🚜;U-Bahn|🚇;Wohnmobil|🚐;Zug|🚆"},
+  {name:"Berufe", emoji:"👷", words:"Arzt|🧑‍⚕️;Astronaut|🧑‍🚀;Bäcker|🥖;Bauer|🧑‍🌾;Busfahrer|🚌;Dachdecker|🏠;Elektriker|💡;Feuerwehrmann|🧑‍🚒;Friseur|💇;Gärtner|🌷;Hausmeister|🔧;Imker|🐝;Journalist|📰;Koch|🧑‍🍳;Kellner|🍽️;Lehrer|🧑‍🏫;Lokführer|🚂;Maler|🎨;Metzger|🥩;Musiker|🎵;Polizist|👮;Pilot|🧑‍✈️;Postbote|📬;Schreiner|🪚;Sänger|🎤;Tierarzt|🐶;Tischler|🪚;Verkäufer|🛒;Zahnarzt|🦷;Zauberer|🪄"},
+  {name:"Schulfächer", emoji:"🎒", words:"Biologie|🌱;Chemie|🧪;Deutsch|📖;Englisch|🇬🇧;Erdkunde|🌍;Ethik|🤝;Französisch|🇫🇷;Geschichte|🏰;Informatik|💻;Kunst|🎨;Latein|🏛️;Mathe|➗;Musik|🎵;Physik|🧲;Religion|⛪;Sachunterricht|🔎;Sport|⚽;Werken|🔨"},
+  {name:"Farben", emoji:"🎨", words:"Blau|🔵;Braun|🟤;Beige|🟫;Gelb|🟡;Grün|🟢;Grau|🩶;Gold|🥇;Lila|🟣;Orange|🟠;Pink|🩷;Rot|🔴;Rosa|🩷;Schwarz|⚫;Silber|🥈;Türkis|🩵;Weiß|⚪;Violett|🟣"},
+  {name:"Kleidung", emoji:"👕", words:"Anzug|🤵;Badehose|🩳;Bluse|👚;Gürtel|🪢;Handschuhe|🧤;Hose|👖;Hemd|👔;Jacke|🧥;Jeans|👖;Kleid|👗;Kappe|🧢;Krawatte|👔;Mütze|🧢;Mantel|🧥;Pullover|🧶;Rock|👗;Regenjacke|🧥;Schal|🧣;Socken|🧦;Schuhe|👟;Stiefel|👢;Schlafanzug|🛌;T-Shirt|👕;Unterhose|🩲;Weste|🦺"},
+  {name:"Körperteile", emoji:"🖐️", words:"Arm|💪;Auge|👁️;Bauch|🫃;Bein|🦵;Daumen|👍;Ellbogen|💪;Finger|☝️;Fuß|🦶;Gehirn|🧠;Haare|💇;Hals|🧣;Hand|✋;Herz|❤️;Knie|🦵;Kopf|🙂;Lippe|👄;Mund|👄;Nase|👃;Ohr|👂;Po|🍑;Rücken|🧍;Schulter|🤷;Stirn|🙂;Wange|😊;Zahn|🦷;Zunge|👅;Zeh|🦶"},
+  {name:"Spielsachen", emoji:"🧸", words:"Ball|⚽;Bauklötze|🧱;Domino|🁫;Drachen|🪁;Eisenbahn|🚂;Kreisel|🌀;Knete|🟢;Lego|🧱;Memory|🃏;Murmeln|🔵;Puppe|🪆;Puzzle|🧩;Roller|🛴;Rutsche|🛝;Schaukel|🌳;Seifenblasen|🫧;Springseil|🪢;Teddy|🧸;Trampolin|🤸;Würfel|🎲;Yo-Yo|🪀;Zauberwürfel|🧊"},
+  {name:"Essen", emoji:"🍕", words:"Brot|🍞;Brezel|🥨;Butter|🧈;Ei|🥚;Eis|🍦;Fischstäbchen|🐟;Gummibärchen|🐻;Honig|🍯;Hamburger|🍔;Joghurt|🥣;Käse|🧀;Kuchen|🍰;Keks|🍪;Lasagne|🍝;Milch|🥛;Müsli|🥣;Marmelade|🍓;Nudeln|🍝;Pizza|🍕;Pommes|🍟;Pfannkuchen|🥞;Popcorn|🍿;Reis|🍚;Suppe|🍲;Schokolade|🍫;Spaghetti|🍝;Toast|🍞;Wurst|🌭;Waffel|🧇"},
+  {name:"Im Haus", emoji:"🏠", words:"Badewanne|🛁;Bett|🛏️;Besen|🧹;Couch|🛋️;Dusche|🚿;Fenster|🪟;Fernseher|📺;Gabel|🍴;Herd|🍳;Kühlschrank|🧊;Kerze|🕯️;Lampe|💡;Löffel|🥄;Messer|🔪;Spiegel|🪞;Sofa|🛋️;Stuhl|🪑;Schrank|🚪;Teller|🍽️;Tisch|🪑;Tür|🚪;Toilette|🚽;Uhr|🕰️;Waschmaschine|🧺;Zahnbürste|🪥"},
+  {name:"Natur", emoji:"🌳", words:"Baum|🌳;Blume|🌸;Berg|⛰️;Blatt|🍃;Erde|🌍;Feuer|🔥;Fluss|🏞️;Gras|🌿;Himmel|☁️;Insel|🏝️;Kaktus|🌵;Meer|🌊;Mond|🌙;Pilz|🍄;Regen|🌧️;Regenbogen|🌈;Rose|🌹;Sonne|☀️;Stern|⭐;Schnee|❄️;Stein|🪨;Tulpe|🌷;Vulkan|🌋;Wolke|☁️;Wald|🌲;Wüste|🏜️"}
+];
+
+const CATS = RAW.map(c => ({
+  name: c.name, emoji: c.emoji,
+  words: c.words.split(";").map(s => { const [w,e] = s.split("|"); return {w, e: e||""}; })
+}));
+CATS.forEach(c => {
+  c.byLetter = {};
+  c.words.forEach(o => {
+    const L = o.w[0].toUpperCase();
+    (c.byLetter[L] = c.byLetter[L] || []).push(o);
+  });
+});
+
+/* Buchstaben so aussprechen, wie man sie im Deutschen nennt */
+const LETTER_SAY = {A:"A",B:"Be",C:"Ze",D:"De",E:"E",F:"Eff",G:"Ge",H:"Ha",I:"I",J:"Jott",K:"Ka",L:"Ell",M:"Emm",N:"Enn",O:"O",P:"Pe",Q:"Ku",R:"Err",S:"Ess",T:"Te",U:"U",V:"Vau",W:"We",X:"Ix",Y:"Üpsilon",Z:"Zett","Ä":"Ä","Ö":"Ö","Ü":"Ü"};
+const say = L => LETTER_SAY[L] || L;
+
+/* ---------- Vorlesen ---------- */
+let deVoice = null;
+function pickVoice(){
+  const vs = speechSynthesis.getVoices();
+  const de = vs.filter(v => v.lang && v.lang.toLowerCase().startsWith("de"));
+  const pref = ["Anna","Petra","Helena","Google Deutsch","Katja","Marlene","Vicki"];
+  deVoice = de.find(v => pref.some(p => v.name.includes(p))) || de.find(v => v.localService) || de[0] || null;
+  document.getElementById("voiceWarn").classList.toggle("hidden", !!deVoice || vs.length === 0);
+}
+if ("speechSynthesis" in window){
+  pickVoice();
+  speechSynthesis.onvoiceschanged = pickVoice;
+}
+
+let speakingEl = null;
+function speak(text, el){
+  if (!("speechSynthesis" in window)) return;
+  speechSynthesis.cancel();
+  if (speakingEl) speakingEl.classList.remove("speaking");
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = "de-DE";
+  if (deVoice) u.voice = deVoice;
+  u.rate = 0.85; u.pitch = 1.05;
+  if (el){
+    speakingEl = el; el.classList.add("speaking");
+    const off = () => { el.classList.remove("speaking"); if (speakingEl === el) speakingEl = null; };
+    u.onend = off; u.onerror = off;
+  }
+  speechSynthesis.speak(u);
+}
+
+/* ---------- Zustand ---------- */
+let cat = null, L1 = "", L2 = "";
+const $ = id => document.getElementById(id);
+
+function shuffle(a){ a = a.slice(); for (let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+
+function questionText(){
+  return `Nenne mir ${cat.name}, die mit ${say(L1)} oder ${say(L2)} anfangen.`;
+}
+
+function newLetters(){
+  const letters = Object.keys(cat.byLetter);
+  let a, b, tries = 0;
+  do {
+    [a, b] = shuffle(letters).slice(0, 2);
+    tries++;
+  } while (tries < 20 && ((a === L1 && b === L2) || (a === L2 && b === L1)));
+  [L1, L2] = [a, b].sort((x, y) => x.localeCompare(y, "de"));
+  render();
+  ["tileA","tileB"].forEach(id => { const t=$(id); t.classList.remove("pop"); void t.offsetWidth; t.classList.add("pop"); });
+  speak(questionText(), $("questionBtn"));
+}
+
+function render(){
+  $("qEmoji").textContent = cat.emoji;
+  $("qName").textContent = cat.name;
+  $("qL1").textContent = L1; $("qL2").textContent = L2;
+  $("tileA").textContent = L1; $("tileB").textContent = L2;
+  $("solution").classList.add("hidden");
+  $("solBtn").textContent = "💡 Lösung";
+}
+
+function showSolution(){
+  const box = $("solution");
+  if (!box.classList.contains("hidden")){
+    box.classList.add("hidden"); $("solBtn").textContent = "💡 Lösung"; return;
+  }
+  box.innerHTML = "";
+  [[L1,"var(--a)"],[L2,"var(--b)"]].forEach(([L,col]) => {
+    const g = document.createElement("div"); g.className = "group";
+    g.innerHTML = `<div class="ghead"><span class="badge" style="background:${col}">${L}</span> wie …</div>`;
+    shuffle(cat.byLetter[L]).slice(0, 3).forEach(o => {
+      const b = document.createElement("button"); b.className = "word";
+      const icon = o.e ? `<span class="we">${o.e}</span>` : `<span class="wl" style="background:${col}">${L}</span>`;
+      b.innerHTML = `${icon}<span class="wt"><b style="color:${col}">${o.w[0]}</b>${o.w.slice(1)}</span><span class="ws">🔊</span>`;
+      b.onclick = () => speak(o.w.replace("-", " "), b);
+      g.appendChild(b);
+    });
+    box.appendChild(g);
+  });
+  box.classList.remove("hidden");
+  $("solBtn").textContent = "🙈 Lösung zu";
+  box.scrollIntoView({behavior:"smooth", block:"start"});
+}
+
+function startCat(c){
+  cat = c; L1 = L2 = "";
+  $("home").classList.add("hidden");
+  $("quiz").classList.remove("hidden");
+  window.scrollTo(0,0);
+  newLetters();
+}
+
+/* ---------- Startseite ---------- */
+(function buildGrid(){
+  const grid = $("grid");
+  const r = document.createElement("button");
+  r.className = "cat random";
+  r.innerHTML = `<span class="e">🎲</span><span class="n">Zufall</span>`;
+  r.onclick = () => startCat(CATS[Math.floor(Math.random()*CATS.length)]);
+  grid.appendChild(r);
+  CATS.forEach(c => {
+    const b = document.createElement("button");
+    b.className = "cat";
+    b.innerHTML = `<span class="e">${c.emoji}</span><span class="n">${c.name}</span>`;
+    b.onclick = () => startCat(c);
+    grid.appendChild(b);
+  });
+})();
+
+/* ---------- Events ---------- */
+$("questionBtn").onclick = () => speak(questionText(), $("questionBtn"));
+$("tileA").onclick = () => speak(say(L1));
+$("tileB").onclick = () => speak(say(L2));
+$("nextBtn").onclick = newLetters;
+$("solBtn").onclick = showSolution;
+$("backBtn").onclick = () => {
+  speechSynthesis && speechSynthesis.cancel();
+  $("quiz").classList.add("hidden"); $("home").classList.remove("hidden");
+};
+$("otherBtn").onclick = () => {
+  const others = CATS.filter(c => c !== cat);
+  startCat(others[Math.floor(Math.random()*others.length)]);
+};
+</script>
+</body>
+</html>
