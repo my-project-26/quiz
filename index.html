@@ -104,6 +104,23 @@
   .word.speaking .ws{animation:pulse .6s infinite alternate}
   .hint{text-align:center;color:var(--muted);font-size:15px;margin-top:22px}
   .voicewarn{background:#fff;border-radius:16px;padding:10px 14px;margin:10px 0;font-size:15px;color:#b23a48}
+  .homeTop{display:flex;justify-content:flex-end}
+
+  /* Stimmen-Einstellungen */
+  .modal{position:fixed;inset:0;background:rgba(43,45,66,.45);display:flex;align-items:flex-end;justify-content:center;z-index:10}
+  .sheet{background:#fff;width:100%;max-width:640px;max-height:88vh;overflow:auto;border-radius:28px 28px 0 0;padding:20px 18px 30px}
+  .sheet h2{margin:0 0 6px;font-size:26px}
+  .sheet h3{margin:18px 0 8px;font-size:18px}
+  .vlist{display:flex;flex-direction:column;gap:8px}
+  .vbtn{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-radius:16px;background:#f6f7fb;font-size:18px;text-align:left}
+  .vbtn.sel{background:#e7fff7;outline:3px solid var(--ok)}
+  .vbtn small{color:var(--muted);font-size:13px;display:block}
+  .vbtn .star{font-size:14px;background:var(--sun);border-radius:999px;padding:3px 9px;white-space:nowrap}
+  .rates{display:flex;gap:8px}
+  .rates button{flex:1;padding:14px;border-radius:16px;background:#f6f7fb;font-size:18px;font-weight:700}
+  .rates button.sel{background:var(--sun)}
+  .tip{background:#fff8e1;border-radius:16px;padding:12px 14px;font-size:15px;line-height:1.45;margin-top:16px}
+  .close{width:100%;margin-top:18px;padding:16px;border-radius:20px;background:var(--ok);color:#fff;font-size:20px;font-weight:800}
 </style>
 </head>
 <body>
@@ -111,6 +128,7 @@
 
   <!-- Themen-Auswahl -->
   <section id="home">
+    <div class="homeTop"><button class="pill" data-voice>🗣️ Stimme</button></div>
     <h1>🔤 Buchstaben-Quiz</h1>
     <p class="sub">Tippe auf ein Thema!</p>
     <div id="voiceWarn" class="voicewarn hidden">Hinweis: Auf diesem Gerät wurde keine deutsche Stimme gefunden. Vorlesen klappt evtl. nur auf Englisch.</div>
@@ -121,6 +139,7 @@
   <section id="quiz" class="hidden">
     <div class="top">
       <button class="pill" id="backBtn">⬅️ Themen</button>
+      <button class="pill" data-voice>🗣️</button>
       <button class="pill" id="otherBtn">🎲 Anderes Thema</button>
     </div>
 
@@ -150,6 +169,28 @@
     <p class="hint">Tippe auf die Frage, die Buchstaben oder die Wörter – dann wird vorgelesen.</p>
   </section>
 
+</div>
+
+<div class="modal hidden" id="voiceModal">
+  <div class="sheet">
+    <h2>🗣️ Stimme wählen</h2>
+    <div style="color:var(--muted)">Antippen zum Anhören – die gewählte Stimme wird gespeichert.</div>
+    <h3>Tempo</h3>
+    <div class="rates" id="rates">
+      <button data-rate="0.75">🐢 Langsam</button>
+      <button data-rate="0.9">🙂 Normal</button>
+      <button data-rate="1.0">🐇 Schnell</button>
+    </div>
+    <h3>Deutsche Stimmen auf diesem Gerät</h3>
+    <div class="vlist" id="vlist"></div>
+    <div class="tip">
+      <b>Bessere Stimme bekommen (kostenlos):</b><br>
+      <b>iPad/iPhone:</b> Einstellungen → Bedienungshilfen → Gesprochene Inhalte → Stimmen → Deutsch → z.&nbsp;B. <b>„Anna (Premium)“</b> oder <b>„Helena (Erweitert)“</b> laden.<br>
+      <b>Mac:</b> Systemeinstellungen → Bedienungshilfen → Gesprochene Inhalte → Systemstimme → Stimmen verwalten → Deutsch → <b>Premium</b>-Stimme laden.<br>
+      Danach Safari neu öffnen – die beste Stimme wird automatisch gewählt.
+    </div>
+    <button class="close" id="closeVoice">Fertig</button>
+  </div>
 </div>
 
 <script>
@@ -189,17 +230,72 @@ const LETTER_SAY = {A:"A",B:"Be",C:"Ze",D:"De",E:"E",F:"Eff",G:"Ge",H:"Ha",I:"I"
 const say = L => LETTER_SAY[L] || L;
 
 /* ---------- Vorlesen ---------- */
-let deVoice = null;
+let deVoice = null, deVoices = [];
+let rate = 0.9;
+const store = {
+  get(k){ try { return localStorage.getItem(k); } catch(e){ return null; } },
+  set(k,v){ try { localStorage.setItem(k,v); } catch(e){} }
+};
+rate = parseFloat(store.get("quizRate")) || 0.9;
+
+/* Spaß-/Roboterstimmen von Apple aussortieren */
+const NOVELTY = /eddy|flo|grandma|grandpa|oma|opa|reed|rocko|sandy|shelley|albert|bad news|bahh|bells|boing|bubbles|cellos|good news|jester|organ|superstar|trinoids|whisper|wobble|zarvox|fred|junior|ralph|kathy|hysterical|deranged/i;
+
+function voiceScore(v){
+  const n = v.name.toLowerCase();
+  let s = 0;
+  if (/premium/.test(n)) s += 100;
+  if (/enhanced|erweitert|verbessert/.test(n)) s += 80;
+  if (/neural|natural|online/.test(n)) s += 90;   // Edge / Windows Neural-Stimmen
+  if (/siri/.test(n)) s += 70;
+  if (/google/.test(n)) s += 50;
+  if (/anna|helena|petra|markus|yannick|katja|conrad|amala|seraphina|florian/.test(n)) s += 10;
+  if (v.lang.toLowerCase() === "de-de") s += 5;
+  if (NOVELTY.test(n)) s -= 200;
+  return s;
+}
+function voiceLabel(v){
+  const s = voiceScore(v);
+  if (s >= 80) return "⭐ sehr gut";
+  if (s >= 50) return "gut";
+  return "";
+}
+
 function pickVoice(){
   const vs = speechSynthesis.getVoices();
-  const de = vs.filter(v => v.lang && v.lang.toLowerCase().startsWith("de"));
-  const pref = ["Anna","Petra","Helena","Google Deutsch","Katja","Marlene","Vicki"];
-  deVoice = de.find(v => pref.some(p => v.name.includes(p))) || de.find(v => v.localService) || de[0] || null;
+  deVoices = vs.filter(v => v.lang && v.lang.toLowerCase().startsWith("de") && !NOVELTY.test(v.name))
+               .sort((a,b) => voiceScore(b) - voiceScore(a));
+  const saved = store.get("quizVoice");
+  deVoice = deVoices.find(v => v.voiceURI === saved) || deVoices[0] || null;
   document.getElementById("voiceWarn").classList.toggle("hidden", !!deVoice || vs.length === 0);
+  if (!document.getElementById("voiceModal").classList.contains("hidden")) renderVoiceList();
 }
 if ("speechSynthesis" in window){
   pickVoice();
   speechSynthesis.onvoiceschanged = pickVoice;
+  setTimeout(pickVoice, 500);
+}
+
+function renderVoiceList(){
+  const list = $("vlist"); list.innerHTML = "";
+  if (!deVoices.length){
+    list.innerHTML = `<div style="color:var(--muted)">Keine deutsche Stimme gefunden.</div>`;
+  }
+  deVoices.forEach(v => {
+    const b = document.createElement("button");
+    b.className = "vbtn" + (deVoice && v.voiceURI === deVoice.voiceURI ? " sel" : "");
+    const lab = voiceLabel(v);
+    b.innerHTML = `<span>${v.name}<small>${v.lang}${v.localService ? "" : " · online"}</small></span>${lab ? `<span class="star">${lab}</span>` : ""}`;
+    b.onclick = () => {
+      deVoice = v; store.set("quizVoice", v.voiceURI);
+      renderVoiceList();
+      speak("Hallo! Ich lese dir das Quiz vor. Nenne mir Tiere mit Ge oder Ha.");
+    };
+    list.appendChild(b);
+  });
+  document.querySelectorAll("#rates button").forEach(b => {
+    b.classList.toggle("sel", parseFloat(b.dataset.rate) === rate);
+  });
 }
 
 let speakingEl = null;
@@ -210,7 +306,7 @@ function speak(text, el){
   const u = new SpeechSynthesisUtterance(text);
   u.lang = "de-DE";
   if (deVoice) u.voice = deVoice;
-  u.rate = 0.85; u.pitch = 1.05;
+  u.rate = rate; u.pitch = 1;
   if (el){
     speakingEl = el; el.classList.add("speaking");
     const off = () => { el.classList.remove("speaking"); if (speakingEl === el) speakingEl = null; };
@@ -309,6 +405,15 @@ $("backBtn").onclick = () => {
   speechSynthesis && speechSynthesis.cancel();
   $("quiz").classList.add("hidden"); $("home").classList.remove("hidden");
 };
+document.querySelectorAll("[data-voice]").forEach(b => b.onclick = () => {
+  pickVoice(); renderVoiceList(); $("voiceModal").classList.remove("hidden");
+});
+$("closeVoice").onclick = () => $("voiceModal").classList.add("hidden");
+$("voiceModal").onclick = e => { if (e.target.id === "voiceModal") $("voiceModal").classList.add("hidden"); };
+document.querySelectorAll("#rates button").forEach(b => b.onclick = () => {
+  rate = parseFloat(b.dataset.rate); store.set("quizRate", rate);
+  renderVoiceList(); speak("So schnell spreche ich jetzt.");
+});
 $("otherBtn").onclick = () => {
   const others = CATS.filter(c => c !== cat);
   startCat(others[Math.floor(Math.random()*others.length)]);
