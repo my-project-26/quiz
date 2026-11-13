@@ -175,6 +175,7 @@
   <div class="sheet">
     <h2>🗣️ Stimme wählen</h2>
     <div style="color:var(--muted)">Antippen zum Anhören – die gewählte Stimme wird gespeichert.</div>
+    <div id="audioNote" class="tip hidden" style="margin-top:10px">✅ Aufgenommene Siri-Stimme ist aktiv – sie wird automatisch benutzt. Die Auswahl unten gilt nur, falls ein Wort fehlt.</div>
     <h3>Tempo</h3>
     <div class="rates" id="rates">
       <button data-rate="0.75">🐢 Langsam</button>
@@ -277,6 +278,7 @@ if ("speechSynthesis" in window){
 }
 
 function renderVoiceList(){
+  $("audioNote").classList.toggle("hidden", !AUDIO);
   const list = $("vlist"); list.innerHTML = "";
   if (!deVoices.length){
     list.innerHTML = `<div style="color:var(--muted)">Keine deutsche Stimme gefunden.</div>`;
@@ -298,11 +300,47 @@ function renderVoiceList(){
   });
 }
 
+/* ---------- Aufgenommene Audiodateien (Siri-Stimme) ---------- */
+const slug = t => t.toLowerCase().replace(/ä/g,"ae").replace(/ö/g,"oe").replace(/ü/g,"ue").replace(/ß/g,"ss").replace(/[^a-z0-9]+/g,"_").replace(/^_|_$/g,"");
+let AUDIO = null;              // Set der vorhandenen Dateien, sonst null
+const player = new Audio();
+let seqId = 0;
+fetch("audio/manifest.json", {cache:"no-cache"})
+  .then(r => r.ok ? r.json() : null)
+  .then(list => { if (Array.isArray(list) && list.length) AUDIO = new Set(list); })
+  .catch(() => {});
+
+function stopAll(){
+  seqId++;
+  try { player.pause(); } catch(e){}
+  if ("speechSynthesis" in window) speechSynthesis.cancel();
+  if (speakingEl) { speakingEl.classList.remove("speaking"); speakingEl = null; }
+}
+
+/* spielt mehrere Aufnahmen nacheinander; fehlt eine, wird live vorgelesen */
+function play(keys, fallbackText, el){
+  if (!AUDIO || !keys.every(k => AUDIO.has(k))) { speak(fallbackText, el); return; }
+  stopAll();
+  const my = seqId;
+  keys.forEach(k => { const p = new Audio(); p.preload = "auto"; p.src = `audio/${k}.m4a`; });
+  if (el){ speakingEl = el; el.classList.add("speaking"); }
+  let i = 0;
+  const done = () => { if (my === seqId && el){ el.classList.remove("speaking"); if (speakingEl === el) speakingEl = null; } };
+  const next = () => {
+    if (my !== seqId) return;
+    if (i >= keys.length) { done(); return; }
+    player.src = `audio/${keys[i++]}.m4a`;
+    player.play().catch(() => { done(); });
+  };
+  player.onended = next;
+  player.onerror = () => { if (my === seqId){ done(); speak(fallbackText, el); } };
+  next();
+}
+
 let speakingEl = null;
 function speak(text, el){
   if (!("speechSynthesis" in window)) return;
-  speechSynthesis.cancel();
-  if (speakingEl) speakingEl.classList.remove("speaking");
+  stopAll();
   const u = new SpeechSynthesisUtterance(text);
   u.lang = "de-DE";
   if (deVoice) u.voice = deVoice;
@@ -321,6 +359,11 @@ const $ = id => document.getElementById(id);
 
 function shuffle(a){ a = a.slice(); for (let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
 
+function playQuestion(){
+  play(["c_"+slug(cat.name),"f_diemit","l_"+slug(L1),"f_oder","l_"+slug(L2),"f_anfangen"], questionText(), $("questionBtn"));
+}
+function playLetter(L){ play(["l_"+slug(L)], say(L)); }
+
 function questionText(){
   return `Nenne mir ${cat.name}, die mit ${say(L1)} oder ${say(L2)} anfangen.`;
 }
@@ -335,7 +378,7 @@ function newLetters(){
   [L1, L2] = [a, b].sort((x, y) => x.localeCompare(y, "de"));
   render();
   ["tileA","tileB"].forEach(id => { const t=$(id); t.classList.remove("pop"); void t.offsetWidth; t.classList.add("pop"); });
-  speak(questionText(), $("questionBtn"));
+  playQuestion();
 }
 
 function render(){
@@ -360,7 +403,7 @@ function showSolution(){
       const b = document.createElement("button"); b.className = "word";
       const icon = o.e ? `<span class="we">${o.e}</span>` : `<span class="wl" style="background:${col}">${L}</span>`;
       b.innerHTML = `${icon}<span class="wt"><b style="color:${col}">${o.w[0]}</b>${o.w.slice(1)}</span><span class="ws">🔊</span>`;
-      b.onclick = () => speak(o.w.replace("-", " "), b);
+      b.onclick = () => play(["w_"+slug(o.w)], o.w.replace("-", " "), b);
       g.appendChild(b);
     });
     box.appendChild(g);
@@ -396,13 +439,13 @@ function startCat(c){
 })();
 
 /* ---------- Events ---------- */
-$("questionBtn").onclick = () => speak(questionText(), $("questionBtn"));
-$("tileA").onclick = () => speak(say(L1));
-$("tileB").onclick = () => speak(say(L2));
+$("questionBtn").onclick = playQuestion;
+$("tileA").onclick = () => playLetter(L1);
+$("tileB").onclick = () => playLetter(L2);
 $("nextBtn").onclick = newLetters;
 $("solBtn").onclick = showSolution;
 $("backBtn").onclick = () => {
-  speechSynthesis && speechSynthesis.cancel();
+  stopAll();
   $("quiz").classList.add("hidden"); $("home").classList.remove("hidden");
 };
 document.querySelectorAll("[data-voice]").forEach(b => b.onclick = () => {
